@@ -19,4 +19,5 @@ igw_final_tags = merge(
     },
     var.igw_tags
 )
+az_names = slice(data.aws_availability_zones.available.names, 0, 2)
 }
