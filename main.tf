@@ -17,7 +17,7 @@ resource "aws_subnet" "public" {
     count = length(var.public_subnet_cidrs)
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = "us-west-2a" # Specify an Availability Zone
+  availability_zone       = lacal.az_names # Specify an Availability Zone
   map_public_ip_on_launch = true         # Automatically assign public IPs to instances launched in this subnet
 
   tags = merge (
