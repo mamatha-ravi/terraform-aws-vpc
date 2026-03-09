@@ -31,19 +31,19 @@ resource "aws_subnet" "public" {
 }
 
 # 3. Create a Private Subnet
-resource "aws_subnet" "Private" {
-    count = length(var.Private_subnet_cidrs)
+resource "aws_subnet" "private" {
+    count = length(var.private_subnet_cidrs)
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.Private_subnet_cidrs[count.index]
+  cidr_block              = var.private_subnet_cidrs[count.index]
   availability_zone       = local.az_names[count.index] # Specify an Availability Zone
   
   tags = merge (
     local.common_tags,
     #roboshop-Private-us-east-1a
   {
-    Name = "${var.project}-Private-${local.az_names[count.index]}"
+    Name = "${var.project}-private-${local.az_names[count.index]}"
   },
-  var.Private_subnet_tags
+  var.private_subnet_tags
   )
 }
 # 3. Create a database Subnet
@@ -149,8 +149,8 @@ resource "aws_route" "private" {
 }
 # associating private route table with public subnets
 resource "aws_route_table_association" "private" {
-  count = length(var.Private_subnet_cidrs)
-  subnet_id      = aws_subnet.Private[count.index].id
+  count = length(var.private_subnet_cidrs)
+  subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
 }
 
