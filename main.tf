@@ -1,78 +1,80 @@
-# 1. Create a VPC
 resource "aws_vpc" "main" {
   cidr_block       = var.vpc_cidr
   instance_tenancy = "default"
   enable_dns_hostnames = true
+
   tags = local.vpc_final_tags
 }
 
-# 2. Create an Internet Gateway (IGW)
 resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id #vpc association
+  vpc_id = aws_vpc.main.id # VPC association
+
   tags = local.igw_final_tags
 }
 
-# 3. Create a Public Subnet
+# Public Subnets
 resource "aws_subnet" "public" {
-    count = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = local.az_names[count.index] # Specify an Availability Zone
-  map_public_ip_on_launch = true         # Automatically assign public IPs to instances launched in this subnet
+  count = length(var.public_subnet_cidrs)
+  vpc_id     = aws_vpc.main.id
+  cidr_block = var.public_subnet_cidrs[count.index]
+  availability_zone = local.az_names[count.index]
+  map_public_ip_on_launch = true
 
-  tags = merge (
-    local.common_tags,
-    #roboshop-public-us-east-1a
-  {
-    Name = "${var.project}-public-${local.az_names[count.index]}"
-  },
-  var.public_subnet_tags
-  )
+  tags = merge(
+        local.common_tags,
+        # roboshop-dev-public-us-east-1a
+        {
+            Name = "${var.project}-${var.environment}-public-${local.az_names[count.index]}"
+        },
+        var.public_subnet_tags
+    )
 }
 
-# 3. Create a Private Subnet
+# private Subnets
 resource "aws_subnet" "private" {
-    count = length(var.private_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.private_subnet_cidrs[count.index]
-  availability_zone       = local.az_names[count.index] # Specify an Availability Zone
-  
-  tags = merge (
-    local.common_tags,
-    #roboshop-Private-us-east-1a
-  {
-    Name = "${var.project}-private-${local.az_names[count.index]}"
-  },
-  var.private_subnet_tags
-  )
+  count = length(var.private_subnet_cidrs)
+  vpc_id     = aws_vpc.main.id
+  cidr_block = var.private_subnet_cidrs[count.index]
+  availability_zone = local.az_names[count.index]
+
+  tags = merge(
+        local.common_tags,
+        # roboshop-dev-private-us-east-1a
+        {
+            Name = "${var.project}-${var.environment}-private-${local.az_names[count.index]}"
+        },
+        var.private_subnet_tags
+    )
 }
-# 3. Create a database Subnet
+
+# database Subnets
 resource "aws_subnet" "database" {
-    count = length(var.database_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.database_subnet_cidrs[count.index]
-  availability_zone       = local.az_names[count.index] # Specify an Availability Zone
-  
-  tags = merge (
-    local.common_tags,
-    #roboshop-database-us-east-1a
-  {
-    Name = "${var.project}-database-${local.az_names[count.index]}"
-  },
-  var.database_subnet_tags
-  )
+  count = length(var.database_subnet_cidrs)
+  vpc_id     = aws_vpc.main.id
+  cidr_block = var.database_subnet_cidrs[count.index]
+  availability_zone = local.az_names[count.index]
+
+  tags = merge(
+        local.common_tags,
+        # roboshop-dev-database-us-east-1a
+        {
+            Name = "${var.project}-${var.environment}-database-${local.az_names[count.index]}"
+        },
+        var.database_subnet_tags
+    )
 }
-#route table creation without connecting routes
+
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
-    tags = merge (
-      local.common_tags,
-      {
-        Name = "${var.project}-${var.environment}-public" #roboshop-dev-public
-      },
-    var.public_route_table_tags
-    )
+  tags = merge(
+        local.common_tags,
+        # roboshop-dev-public
+        {
+            Name = "${var.project}-${var.environment}-public"
+        },
+        var.public_route_table_tags
+  )
 }
 
 resource "aws_route_table" "private" {
@@ -100,40 +102,35 @@ resource "aws_route_table" "database" {
         var.database_route_table_tags
   )
 }
-# adding route to the public route table
+
 resource "aws_route" "public" {
-  route_table_id              = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id      = aws_internet_gateway.main.id
-}
-# associating public route table with public subnets
-resource "aws_route_table_association" "public" {
-  count = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
+  route_table_id            = aws_route_table.public.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.main.id
 }
 
 resource "aws_eip" "nat" {
-    domain   = "vpc"
-    tags = merge(
+  domain                    = "vpc"
+  
+  tags = merge(
         local.common_tags,
         {
-            Name = "${var.project}-${var.environment}-nat" #roboshop-dev-nat
+            Name = "${var.project}-${var.environment}-nat"
         },
         var.eip_tags
   )
 }
+
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id  # we are creating this in us-east-1a AZ
+  subnet_id     = aws_subnet.public[0].id # we are creating this in us-east-1a AZ
 
   tags = merge(
-    local.common_tags,
-    {
-      Name = "${var.project}-${var.environment}"
-    },
-    var.nat_gateway_tags
-
+        local.common_tags,
+        {
+            Name = "${var.project}-${var.environment}"
+        },
+        var.nat_gateway_tags
   )
 
   # To ensure proper ordering, it is recommended to add an explicit dependency
@@ -141,17 +138,10 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# adding route to the private route table
 resource "aws_route" "private" {
-  route_table_id              = aws_route_table.private.id
-  destination_cidr_block = "0.0.0.0/0"
-   nat_gateway_id = aws_nat_gateway.main.id
-}
-# associating private route table with public subnets
-resource "aws_route_table_association" "private" {
-  count = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  route_table_id            = aws_route_table.private.id
+  destination_cidr_block    = "0.0.0.0/0"
+  nat_gateway_id = aws_nat_gateway.main.id
 }
 
 resource "aws_route" "database" {
@@ -160,8 +150,33 @@ resource "aws_route" "database" {
   nat_gateway_id = aws_nat_gateway.main.id
 }
 
+
+resource "aws_route_table_association" "public" {
+  count = length(var.public_subnet_cidrs)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private" {
+  count = length(var.private_subnet_cidrs)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
 resource "aws_route_table_association" "database" {
   count = length(var.database_subnet_cidrs)
   subnet_id      = aws_subnet.database[count.index].id
   route_table_id = aws_route_table.database.id
+}
+
+resource "aws_db_subnet_group" "roboshop" {
+  name       = "${var.project}-${var.environment}"
+  subnet_ids = [aws_subnet.database[0].id,aws_subnet.database[1].id]
+
+  tags = merge(
+        local.common_tags,
+        {
+            Name = "${var.project}-${var.environment}"
+        }
+  )
 }
