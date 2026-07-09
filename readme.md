@@ -8,7 +8,7 @@ A Terraform module for provisioning a production-ready AWS VPC with public, priv
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/daws-88s/terraform-aws-vpc.git?ref=main"
+  source = "git::https://github.com/mamatha-ravi/terraform-aws-vpc.git?ref=main""
 
   project     = "roboshop"
   environment = "dev"
@@ -125,3 +125,10 @@ roboshop-dev-database-us-east-1a
 ## License
 
 MIT
+
+## Author
+ 
+Mamatha Ravipati
+📍 Hyderabad, India
+📧 mamata.r@gmail.com
+🔗 [github.com/mamatha-ravi](https://github.com/mamatha-ravi)
